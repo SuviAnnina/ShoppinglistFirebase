@@ -2,7 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useState, useEffect } from 'react';
 import { StyleSheet, View, TextInput, Button, FlatList, Text } from 'react-native';
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, push, onValue } from 'firebase/database';
+import { getDatabase, ref, push, onValue, remove } from 'firebase/database';
 
 const firebaseConfig = JSON.parse(process.env.EXPO_PUBLIC_FIREBASE_CONFIG);
 const app = initializeApp(firebaseConfig);
@@ -12,24 +12,35 @@ export default function App() {
 
   const [product, setProduct] = useState({
     title: '',
-    amount: ''
+    amount: '',
   });
 
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
-    onValue(ref(database, '/listItems'), (snapshot) => {
+    onValue(ref(database, '/products'), (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setProducts(Object.values(data));
+        const items = Object.entries(data).map(([key, value]) => ({
+          key: key,
+          ...value
+        }));
+        setProducts(items);
+      } else {
+        setProducts([]);
       }
-    })
+    });
   }, []);
 
+
   const handleSave = () => {
-    console.log(product);
-    push(ref(database, '/listItems'), product);
+    push(ref(database, '/products'), product);
+  };
+
+  const handleDelete = (productKey) => {
+    remove(ref(database, `/products/${productKey}`))
   }
+
 
   return (
     <View style={styles.container}>
@@ -52,7 +63,13 @@ export default function App() {
 
       <FlatList
         data={products}
-        renderItem={({ item }) => <Text>{item.title} {item.amount}</Text>}
+        renderItem={({ item }) => (
+          <View>
+            <Text>{item.title} {item.amount} </Text>
+            <Button title="Delete" onPress={() => handleDelete(item.key)} />
+          </View>
+        )}
+        keyExtractor={(item) => item.key}
       />
 
       <StatusBar style="auto" />
